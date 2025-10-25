@@ -334,11 +334,44 @@ function addAlbum {
 #################
 
 function viewAlbums {
-	awk ' BEGIN {
-       	printf "%-10s %s %s %s %s %s", "Field1", "Field2", "Field2" , "Field3" , "Field4" , "Field5" , "Field5", "Field6" 
-	printf $1, $2, $3, $4, $5, $6	
+	awk '
+	BEGIN {
+###Formatting variable
+	spacing = "  %-10s| | %-15s| | %-15s| | %-15s| | %-15s| | %-15s| | %-15s| | %-25s|\n"
+
+
+###Table top frame for column titles
+	printf "\n"
+	for (i = 0; i < 156; i++)
+		printf "_"
+	print "\n"
+
+
+###Column title
+	printf spacing , "Album ID", "Album Name", "Artist" , "Year" , "Genre" , "No. of Tracks" , "Record Label", "Universal Product Code"
+
+
+###Table bottom frame for column titles
+	for (i = 0; i < 156; i++)
+		printf "_"
+
+
+	print "\n"}
+###END OF BEGIN
+
+###Field printing
+	 {
+	 printf spacing , $1, $2, $3, $4, $5, $6, $7, $8 
+	 }
+
+
+###Bottom frame for table
+	END {
+	for (i = 0; i < 156; i++)
+		printf "_"
+	printf "\n"
 	}
-	' added.tmp
+' added.tmp
 	read -sn1
 	menu
 }
