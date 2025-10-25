@@ -112,7 +112,7 @@ function addAlbum {
 			read -n1 TEST
 			if [ "$TEST" = $'\e' ];
 			then
-				menu
+				break 2
 			fi
 			if [ -z "$TEST" ]
 			then 
@@ -135,7 +135,7 @@ function addAlbum {
 			read -n1 TEST
 			if [ "$TEST" = $'\e' ]
 			then
-				menu
+				break 2
 			fi
 			if [ -z "$TEST" ]
 			then 
@@ -153,7 +153,7 @@ function addAlbum {
 			read -n1 TEST
 			if [ "$TEST" = $'\e' ]
 			then
-				menu
+				break 2
 			fi
 			if [ -z "$TEST" ]
 			then 
@@ -168,7 +168,7 @@ function addAlbum {
 				printf "\nInvalid year of release date, needs to have a mimimum 3 digits and a maximum of 4.\n"
 				continue
 			fi
-			if echo "$ALBUMYOR" | egrep -oq '[a-zA-Z!@#$%^&*()_+=<>?~.,-/\\]'
+			if ! echo "$ALBUMYOR" | egrep -oq '[0-9]'
 			then
 				printf "\nAlbum Year of Release cannot contain letters or other symbols.\n"
 				continue
@@ -187,7 +187,7 @@ function addAlbum {
 			read -n1 TEST
 			if [ "$TEST" = $'\e' ]
 			then
-				menu
+				break 2
 			fi
 			if [ -z "$TEST" ]
 			then 
@@ -242,7 +242,7 @@ function addAlbum {
 			read -n1 TEST
 			if [ "$TEST" = $'\e' ]
 			then
-				menu
+				break 2
 			fi
 
 			if [ -z "$TEST" ]
@@ -271,7 +271,7 @@ function addAlbum {
 			read -n1 TEST
 			if [ "$TEST" = $'\e' ]
 			then
-				menu
+				break 2
 			fi
 			if [ -z "$TEST" ]
 			then 
@@ -294,7 +294,7 @@ function addAlbum {
 			read -n1 TEST
 			if [ "$TEST" = $'\e' ]
 			then
-				menu
+				break 2
 			fi
 			if [ -z "$TEST" ]
 			then 
@@ -317,10 +317,15 @@ function addAlbum {
 		done
 
 		clear
-		ALBUMID=$(tail -n 1 added.tmp | awk '{print $1}')
+
+###ID increments with each album added.
+		ALBUMID=$(tail -n 1 added.tmp | awk -F, '{print $1}')
 		ALBUMID=$((ALBUMID + 1))
 		echo "$ALBUMID"
-		printf "$ALBUMID $ALBUMNAME $ARTISTNAME $ALBUMYOR $ALBUMGENRE $TRACKSNUMBER $LABELNAME $UPC\n" >> added.tmp
+
+
+###Need to have comma separation.
+		printf "%s, %s, %s, %s, %s, %s, %s, %s\n"  "$ALBUMID" "$ALBUMNAME" "$ARTISTNAME" "$ALBUMYOR" "$ALBUMGENRE" "$TRACKSNUMBER" "$LABELNAME" "$UPC" >> albumslist.csv
 		printf "\nAdding album record:\n\n"
 		printf "\033[33m$ALBUMID $ALBUMNAME $ARTISTNAME $ALBUMYOR $ALBUMGENRE $TRACKSNUMBER $LABELNAME $UPC\n"
 		printf "\nPress any key to continue."
@@ -334,46 +339,64 @@ function addAlbum {
 #################
 
 function viewAlbums {
+	while true
+	do
+	if ! [ -f albumslist.csv ]
+	then
+		printf "\n\nAlbumslist  file missing, creating now.\n\n"
+		touch albumslist.csv
+		printf "Press any key to continue."
+		read -sn1
+	       	break
+	fi
+	if ! [ -s albumslist.csv ]
+	then
+		printf "\n\nNo albums added yet, nothing to view.\n\n"
+		printf "Press any key to continue."
+		read -sn1
+		break
+	fi
 	awk '
-	BEGIN {
+	BEGIN {FS=","
 ###Formatting variable
-	spacing = "  %-10s| | %-15s| | %-15s| | %-15s| | %-15s| | %-15s| | %-15s| | %-25s|\n"
+	spacing = "  %-10s|| %-25s|| %-20s|| %-15s|| %-15s|| %-15s|| %-15s|| %-25s|\n"
 
 
 ###Table top frame for column titles
-	printf "\n"
-	for (i = 0; i < 156; i++)
-		printf "_"
+printf "\n"
+for (i = 0; i < 164; i++)
+	printf "_"
 	print "\n"
 
 
 ###Column title
-	printf spacing , "Album ID", "Album Name", "Artist" , "Year" , "Genre" , "No. of Tracks" , "Record Label", "Universal Product Code"
+printf spacing , "Album ID", "Album Name", "Artist" , "Year" , "Genre" , "No. of Tracks" , "Record Label", "Universal Product Code"
 
 
 ###Table bottom frame for column titles
-	for (i = 0; i < 156; i++)
-		printf "_"
+for (i = 0; i < 164; i++)
+	printf "_"
 
 
 	print "\n"}
-###END OF BEGIN
+	###END OF BEGIN
 
 ###Field printing
-	 {
-	 printf spacing , $1, $2, $3, $4, $5, $6, $7, $8 
-	 }
+{
+	printf spacing , $1, $2, $3, $4, $5, $6, $7, $8 
+}
 
 
 ###Bottom frame for table
-	END {
-	for (i = 0; i < 156; i++)
-		printf "_"
+END {
+for (i = 0; i < 164; i++)
+	printf "_"
 	printf "\n"
-	}
-' added.tmp
-	read -sn1
-	menu
+}
+' albumslist.csv
+read -sn1
+break
+done
 }
 
 ########################################
