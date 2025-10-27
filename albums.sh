@@ -329,6 +329,12 @@ ALBUMID=$((ALBUMID + 1))
 ###Save or discard record
 
 		read -sn1 YESNO
+		YESNO="${YESNO,,}"
+			if [ -z "$YESNO"  ] || [ "$YESNO" != "y" ] && [ "$YESNO" != "n" ]
+			then
+				printf "\nInvalid answer."
+				read -sn1
+			fi
 			if [ "$YESNO" = "y" ] || [ "$YESNO" = "Y" ]
 			then
 				printf "\nAlbum record added!\n\n"
@@ -384,7 +390,7 @@ function viewAlbums {
 		" \033[93;1m%-15s\033[0m||" \
 		" \033[93;1m%-15s\033[0m||" \
 		" \033[93;1m%-25s\033[0m\033[1m|\033[0m\n"
-		valuesFormat = " \033[1m|\033[0m \033[1:31m%-10s\033[0m|| %-25s|| %-20s|| %-15s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
+		valuesFormat = " \033[1m|\033[0m\033[1:31m%-10s\033[0m|| %-25s|| %-20s|| %-16s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
 		
 		###Table top frame for column titles
 		
@@ -448,12 +454,14 @@ function editAlbumSubmenu {
 
 		printf "%s \n" \
 			" 1) Delete by Album Name" \
+			" 2) Delete all Albums by Artist" \
 			" 0) Back to main menu"
 
 		read -s -n1 CHOICE
 
 		case "$CHOICE" in
 			1) deleteByName;;
+			2) deleteByArtist;;
 			0) break;;
 			*) printf "INVALID OPTION SELECTED"
 		esac
@@ -585,7 +593,12 @@ function deleteByName {
 		###User confirmation for deletion.
 
 		read -sn1 YESNO
-			
+		YESNO="${YESNO,,}"
+			if [ -z "$YESNO"  ] || [ "$YESNO" != "y" ] && [ "$YESNO" != "n" ]
+			then
+				printf "\nInvalid answer."
+				read -sn1
+			fi			
 			if [ "$YESNO" = "y" ] || [ "$YESNO" = "Y" ]
 			then
 
@@ -619,7 +632,13 @@ function deleteByName {
 			awk '
 		       	BEGIN {FS =","}  { printf "\033[1:31m%s by %s\n%s %s\nTracks: %s\nLabel: %s\nUPC: %s\033[0m", $2, $3, $4, $5, $6, $7, $8 }
 			'
-		read -sn1 YESNO
+			read -sn1 YESNO
+			YESNO="${YESNO,,}"
+			if [ -z "$YESNO"  ] || [ "$YESNO" != "y" ] && [ "$YESNO" != "n" ] 
+			then
+				printf"\nInvalid response.\n"
+				read -sn1
+			fi
 		        if [ "$YESNO" = "y" ] || [ "$YESNO" = "Y" ]
 			then
 				awk -v ID="$ALBUMFOUNDID" '
@@ -646,14 +665,225 @@ break
 done
 }
 
+
+#################################
+###DELETE ALL ALBUMS BY ARTIST###
+#################################
+function deleteByArtist {
+	while true
+	do
+		printf "\nInsert artist name:\n\n"
+		read ARTISTTODELETE
+		if [ -z "${ARTISTTODELETE}" ] || [ "${#ARTISTTODELETE}" -lt 3 ] 
+			then
+				printf "\nName cannot be empty or have less thian 3 characters. Press any key to continue.\n"
+				read -sn1
+				break
+		fi
+
+	###Searches for artist name in field 3.
+
+		if ! awk 'BEGIN { FS="," } { print $3 }' albumslist.csv | grep -iEq "$ARTISTTODELETE"
+			then
+				printf "\nNo matches found for \033[1:31m$ARTISTTODELETE\033[0m.\nPress any key to continue.\n"
+				read -sn1
+				break
+		fi
+		
+		clear	
+
+	###Stores the found albums to be displayed to the user.
+	
+		ALBUMSBYARTIST=$(grep -Ei "$ARTISTTODELETE" albumslist.csv)
+		echo "$ALBUMSBYARTIST" | \
+			awk '
+			BEGIN {FS=","
+				###Formatting variables
+				###Used ANSII codes to give the table some colour.
+				titlesFormat = \
+				" \033[1m| \033[0m\033[1:31m%-10s\033[0m||" \
+				" \033[93;1m%-25s\033[0m||" \
+				" \033[93;1m%-20s\033[0m||" \
+				" \033[93;1m%-15s\033[0m||" \
+				" \033[93;1m%-20s\033[0m||" \
+				" \033[93;1m%-15s\033[0m||" \
+				" \033[93;1m%-15s\033[0m||" \
+				" \033[93;1m%-25s\033[0m\033[1m|\033[0m\n"
+				valuesFormat = " \033[1m|\033[0m \033[1:31m%-10s\033[0m|| %-25s|| %-20s|| %-15s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
+
+
+				###Table top frame for column titles
+				printf "\n"
+				printf " "
+				for (i = 0; i < 169; i++)
+				printf "\033[1m_\033[0m"
+				print "\n"
+
+
+				###Column title
+				printf titlesFormat , "Album ID", "Album Name", "Artist" , "Year" , "Genre" , "No. of Tracks" , "Record Label", "Universal Product Code"
+
+				###Table bottom frame for column titles
+				printf " "
+				for (i = 0; i < 169; i++)
+				printf "\033[1m_\033[0m"
+				print "\n"}
+
+				#########END OF BEGIN
+
+				###Field printing
+				{
+				printf valuesFormat , $1, $2, $3, $4, $5, $6, $7, $8 
+				}
+
+
+				###Bottom frame for table
+				END {
+				printf " "
+				for (i = 0; i < 169; i++)
+					printf "\033[1m_\033[0m"
+					printf "\n"
+				###Hide cursor
+				printf "\033[?25l"
+				}'
+				printf "\nYou sure you want to delete these records?(Y/N)\n"
+				read -sn1 YESNO
+				YESNO="${YESNO,,}"
+				if [ -z "$YESNO" ] || [ "$YESNO" != "y"  ] && [ "$YESNO" != "n" ]
+					then	
+					printf "\nInvalid response.\n"
+					read -sn1
+					break
+				fi
+				if [ "$YESNO" = "y" ]
+					then
+				
+				###Lowers the field and the variable used to search for a specific artist.
+				###It then prints all the records that are not matching the artist
+
+						awk -F, -v artistToDelete="$ARTISTTODELETE" '
+						tolower($3) !~ tolower(artistToDelete) { print }	
+						' albumslist.csv > deletedbyartist.tmp
+						sleep 0.25
+						mv deletedbyartist.tmp albumslist.csv
+						printf "\nRecords deleted! Press any key to continue.\n"
+						read -sn1
+				fi
+				break
+	done
+}
+
+
+
 ##########################
 ###SEARCH ALBUM SUBMENU###
 ##########################
 
 function searchAlbumSubmenu {
-	printf "Search menu"
-	read -sn1
-	break
+	while true
+	do
+		clear
+		printf "%s \n" "1) Search by Album Name" \
+			 " 2) Search Albums by Artist"  \
+			 " 3) Search Albums by Year" \
+			 " 0) Return to main menu"
+		
+		read -sn1 CHOICE
+		case "$CHOICE" in
+			1)searchByAlbumName;;
+			2)searchByArtist;;
+			3)searchByYear;;
+			0)break;;
+			*)printf"\nINVALID SELECTION"
+		esac
+	done
+}
+
+##########################
+###SEARCH BY ALBUM NAME###
+##########################
+
+function searchByAlbumName {
+while true
+	do
+		printf "\nEnter the name of the album you are looking for:\n"
+		read NAMETOSEARCH
+	###Check if empty or chars less than 3.
+		if [ -z "$NAMETOSEARCH" ] || [ "${#NAMETOSEARCH}" -lt 3 ]
+		then
+			printf "\nName cannot be empty or have less than 3 characters."
+			read -sn1
+			break
+		fi
+
+	###Search only in field 2 - name of the album.
+	
+		if !  awk 'BEGIN {FS="," } { print $2 }' albumslist.csv | grep -iq "$NAMETOSEARCH"
+		then
+			printf "\nNo matches found."
+			read -sn1
+			break
+	
+		fi
+
+	###Again, fairly similar with the delete function. removed the specific parts that included deletion.
+	
+			ALBUMSFOUND=$(grep -i "$NAMETOSEARCH" albumslist.csv)
+			echo "$ALBUMSFOUND" | \
+				awk '
+				BEGIN {FS=","
+				###Formatting variables
+				###Used ANSII codes to give the table some colour.
+				titlesFormat = \
+				" \033[1m| \033[0m\033[1:31m%-10s\033[0m||" \
+				" \033[93;1m%-25s\033[0m||" \
+				" \033[93;1m%-20s\033[0m||" \
+				" \033[93;1m%-15s\033[0m||" \
+				" \033[93;1m%-20s\033[0m||" \
+				" \033[93;1m%-15s\033[0m||" \
+				" \033[93;1m%-15s\033[0m||" \
+				" \033[93;1m%-25s\033[0m\033[1m|\033[0m\n"
+				valuesFormat = " \033[1m|\033[0m \033[1:31m%-10s\033[0m|| %-25s|| %-20s|| %-15s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
+
+
+				###Table top frame for column titles
+				printf "\n"
+				printf " "
+				for (i = 0; i < 169; i++)
+				printf "\033[1m_\033[0m"
+				print "\n"
+
+
+				###Column title
+				printf titlesFormat , "Album ID", "Album Name", "Artist" , "Year" , "Genre" , "No. of Tracks" , "Record Label", "Universal Product Code"
+
+				###Table bottom frame for column titles
+				printf " "
+				for (i = 0; i < 169; i++)
+				printf "\033[1m_\033[0m"
+				print "\n"}
+
+				#########END OF BEGIN
+
+				###Field printing
+				{
+				printf valuesFormat , $1, $2, $3, $4, $5, $6, $7, $8 
+				}
+
+
+				###Bottom frame for table
+				END {
+				printf " "
+				for (i = 0; i < 169; i++)
+				printf "\033[1m_\033[0m"
+				printf "\n"
+				###Hide cursor
+				printf "\033[?25l"
+				}
+				'
+				read -sn1
+				break
+			done
 }
 
 ########################################
