@@ -74,10 +74,9 @@ function menu {
 	printf "%s \n" \
 		" 1) Add Album" \
 		" 2) View Albums" \
-		" 3) Edit album Details" \
-		" 4) Delete Album" \
-		" 5) Search Album" \
-		" 6) Display and edit genres.txt" \
+		" 3) Edit/Delete Album" \
+		" 4) Search Album" \
+		" 5) Display and edit genres.txt" \
 		" 0) Exit"
 
 	read -s -n1 CHOICE
@@ -85,10 +84,9 @@ function menu {
 	case "$CHOICE" in
 		1) addAlbum ;;
 		2) viewAlbums ;;
-		3) editAlbum ;;
-		4) deleteAlbum ;;
-		5) searchAlbum ;;
-		6) editGenres ;;
+		3) editAlbumSubmenu ;;
+		4) searchAlbumSubmenu ;;
+		5) editGenres ;;
 		0) printf "Goodbye!"
 			##REMEMBER TO REMOVE COMMENT	sleep 1
 			clear
@@ -119,7 +117,8 @@ function addAlbum {
 				printf "Album name cannot be empty."
 				continue
 			fi
-			read REST
+			###Sometimes, some albums have one character as first letter then followed by a space (e.g. "A Thousand Suns") IFS will take that first -space- literally.
+			IFS= read REST
 			ALBUMNAME="$TEST$REST"
 			if [ ${#ALBUMNAME} -gt 20 ]
 			then
@@ -319,19 +318,21 @@ function addAlbum {
 		clear
 
 ###ID increments with each album added.
-		ALBUMID=$(tail -n 1 added.tmp | awk -F, '{print $1}')
-		ALBUMID=$((ALBUMID + 1))
-		echo "$ALBUMID"
-
+ALBUMID=$(tail -n 1 albumslist.csv| awk -F, '{print $1}')
+ALBUMID=$((ALBUMID + 1))
 
 ###Need to have comma separation.
-		printf "%s, %s, %s, %s, %s, %s, %s, %s\n"  "$ALBUMID" "$ALBUMNAME" "$ARTISTNAME" "$ALBUMYOR" "$ALBUMGENRE" "$TRACKSNUMBER" "$LABELNAME" "$UPC" >> albumslist.csv
-		printf "\nAdding album record:\n\n"
-		printf "\033[33m$ALBUMID $ALBUMNAME $ARTISTNAME $ALBUMYOR $ALBUMGENRE $TRACKSNUMBER $LABELNAME $UPC\n"
-		printf "\nPress any key to continue."
-		read -sn1
-		break
-	done
+###Using printf to be sure that after each value there is a comma inserted.
+printf "%s,%s,%s,%s,%s,%s,%s,%s\n"  "$ALBUMID" "$ALBUMNAME" "$ARTISTNAME" "$ALBUMYOR" "$ALBUMGENRE" "$TRACKSNUMBER" "$LABELNAME" "$UPC" >> albumslist.csv
+printf "\nAdding album record:\n\n"
+
+###VISUAL CONFIRMATION FOR USER
+
+printf "\033[33mAlbum ID: $ALBUMID\nAlbum Name: $ALBUMNAME\nArtist Name: $ARTISTNAME\nAlbum Year of Release: $ALBUMYOR\nGenre: $ALBUMGENRE\nNumber of Tracks: $TRACKSNUMBER\nRecord Label: $LABELNAME\nUPC: $UPC\n\033[39m\n"
+printf "\nPress any key to continue."
+read -sn1
+break
+done
 }
 
 #################
@@ -341,62 +342,267 @@ function addAlbum {
 function viewAlbums {
 	while true
 	do
-	if ! [ -f albumslist.csv ]
-	then
-		printf "\n\nAlbumslist  file missing, creating now.\n\n"
-		touch albumslist.csv
-		printf "Press any key to continue."
-		read -sn1
-	       	break
-	fi
-	if ! [ -s albumslist.csv ]
-	then
-		printf "\n\nNo albums added yet, nothing to view.\n\n"
-		printf "Press any key to continue."
-		read -sn1
-		break
-	fi
-	awk '
-	BEGIN {FS=","
-###Formatting variable
-	spacing = "  %-10s|| %-25s|| %-20s|| %-15s|| %-15s|| %-15s|| %-15s|| %-25s|\n"
+		if ! [ -f albumslist.csv ]
+		then
+			printf "\n\nAlbumslist  file missing, creating now.\n\n"
+			touch albumslist.csv
+			printf "Press any key to continue."
+			read -sn1
+			break
+		fi
+		if ! [ -s albumslist.csv ]
+		then
+			printf "\n\nNo albums added yet, nothing to view.\n\n"
+			printf "Press any key to continue."
+			read -sn1
+			break
+		fi
+		###Using custom field separator to have comma as a field separator.
+		awk '
+		BEGIN {FS=","
+		###Formatting variables
+		###Used ANSII codes to give the table some colour.
+		titlesFormat = \
+		" \033[1m| %-10s\033[0m||" \
+		" \033[93;1m%-25s\033[0m||" \
+		" \033[93;1m%-20s\033[0m||" \
+		" \033[93;1m%-15s\033[0m||" \
+		" \033[93;1m%-20s\033[0m||" \
+		" \033[93;1m%-15s\033[0m||" \
+		" \033[93;1m%-15s\033[0m||" \
+		" \033[93;1m%-25s\033[0m\033[1m|\033[0m\n"
+		valuesFormat = " \033[1m|\033[0m %-10s|| %-25s|| %-20s|| %-15s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
+		
+		###Table top frame for column titles
+		
+		printf "\n"
+		printf "\nPress any key to return.\n"
+		printf " "
+		for (i = 0; i < 169; i++)
+		printf "\033[1m_\033[0m"
+		print "\n"
 
 
-###Table top frame for column titles
-printf "\n"
-for (i = 0; i < 164; i++)
-	printf "_"
-	print "\n"
+		###Column title
+		printf titlesFormat , "Album ID", "Album Name", "Artist" , "Year" , "Genre" , "No. of Tracks" , "Record Label", "Universal Product Code"
+
+		###Table bottom frame for column titles
+		printf " "
+		for (i = 0; i < 169; i++)
+		printf "\033[1m_\033[0m"
+		print "\n"}
+
+		#########END OF BEGIN
+
+		###Field printing
+		{
+		printf valuesFormat , $1, $2, $3, $4, $5, $6, $7, $8 
+		}
 
 
-###Column title
-printf spacing , "Album ID", "Album Name", "Artist" , "Year" , "Genre" , "No. of Tracks" , "Record Label", "Universal Product Code"
+		###Bottom frame for table
+		END {
+		printf " "
+		for (i = 0; i < 169; i++)
+		printf "\033[1m_\033[0m"
+		printf "\n"
+		###Hide cursor
+		printf "\033[?25l"
+		}
+		' albumslist.csv
 
-
-###Table bottom frame for column titles
-for (i = 0; i < 164; i++)
-	printf "_"
-
-
-	print "\n"}
-	###END OF BEGIN
-
-###Field printing
-{
-	printf spacing , $1, $2, $3, $4, $5, $6, $7, $8 
-}
-
-
-###Bottom frame for table
-END {
-for (i = 0; i < 164; i++)
-	printf "_"
-	printf "\n"
-}
-' albumslist.csv
 read -sn1
+###Restore cursor
+printf "\033[?25h"
 break
 done
+}
+
+##############################
+###EDIT/DELETE ALBUMSUBMENU###
+##############################
+
+function editAlbumSubmenu {
+	while true
+	do
+		clear
+
+		printf "%s \n" \
+			" 1) Delete by Album Name" \
+			" 0) Back to main menu"
+
+		read -s -n1 CHOICE
+
+		case "$CHOICE" in
+			1) deleteByName;;
+			0) break;;
+			*) printf "INVALID OPTION SELECTED"
+		esac
+	done
+}
+
+##########################
+###Delete album by name###
+##########################
+function deleteByName {
+	while true
+	do
+		printf "\nEnter the name of the album which you want to delete:\n"
+		read NAMETODELETE
+		NAMETODELETE=${NAMETODELETE,,}
+		if [ -z "$NAMETODELETE" ] || [ "${#NAMETODELETE}" -lt 3 ]
+		then
+			printf "\nName cannot be empty or have less than 3 characters."
+			read -sn1
+			break
+		fi
+		if !  awk 'BEGIN {FS="," } { print $2 }' albumslist.csv | grep -iq "$NAMETODELETE"
+		then
+			printf "\nNo matches found."
+			read -sn1
+			break
+		fi
+
+		if [ $( awk 'BEGIN {FS="," } { print $2 }' albumslist.csv | grep -i "$NAMETODELETE" | wc -l ) -gt 1 ]
+		then
+			clear
+			printf "\nMultiple records found for \033[1:31m$NAMETODELETE\033[0m\n"
+			ALBUMSFOUND=$(grep -i "$NAMETODELETE" albumslist.csv)
+			echo "$ALBUMSFOUND" | \
+				awk '
+				BEGIN {FS=","
+				###Formatting variables
+				###Used ANSII codes to give the table some colour.
+				titlesFormat = \
+				" \033[1m| %-10s\033[0m||" \
+				" \033[93;1m%-25s\033[0m||" \
+				" \033[93;1m%-20s\033[0m||" \
+				" \033[93;1m%-15s\033[0m||" \
+				" \033[93;1m%-20s\033[0m||" \
+				" \033[93;1m%-15s\033[0m||" \
+				" \033[93;1m%-15s\033[0m||" \
+				" \033[93;1m%-25s\033[0m\033[1m|\033[0m\n"
+				valuesFormat = " \033[1m|\033[0m %-10s|| %-25s|| %-20s|| %-15s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
+
+
+				###Table top frame for column titles
+				printf "\n"
+				printf " "
+				for (i = 0; i < 169; i++)
+				printf "\033[1m_\033[0m"
+				print "\n"
+
+
+				###Column title
+				printf titlesFormat , "Album ID", "Album Name", "Artist" , "Year" , "Genre" , "No. of Tracks" , "Record Label", "Universal Product Code"
+
+				###Table bottom frame for column titles
+				printf " "
+				for (i = 0; i < 169; i++)
+				printf "\033[1m_\033[0m"
+				print "\n"}
+
+				#########END OF BEGIN
+
+				###Field printing
+				{
+				printf valuesFormat , $1, $2, $3, $4, $5, $6, $7, $8 
+				}
+
+
+				###Bottom frame for table
+				END {
+				printf " "
+				for (i = 0; i < 169; i++)
+				printf "\033[1m_\033[0m"
+				printf "\n"
+				###Hide cursor
+				printf "\033[?25l"
+				}
+				'
+		printf "\nInput the ID of the album you wish to remove:\n"
+		read IDTODELETE
+
+			if ! echo "$ALBUMSFOUND" | awk 'BEGIN {FS="," } { print $1 }' | grep -iq "$IDTODELETE" 
+			then
+				printf "Invalid ID."
+				read -sn1
+				break 1
+			fi
+
+			printf "\nAre you sure you want to delete the following record(Y/N): \n\n"
+
+		awk -v ID="$IDTODELETE" '
+		BEGIN{  FS="," }
+		{
+		if ($1==ID)
+			printf "\033[1:31m%s %s %s %s %s %s %s %s\033[0m", $1, $2, $3, $4, $5, $6, $7, $8 
+		}' albumslist.csv
+		read -sn1 YESNO
+			
+			if [ "$YESNO" = "y" ] || [ "$YESNO" = "Y" ]
+			then
+				awk -v ID="$IDTODELETE" '
+				BEGIN { FS ="," }
+				{
+				if ($1!=ID)
+					print
+				}' albumslist.csv > albumslist.tmp ; 
+				sleep 0.25
+				mv albumslist.tmp  albumslist.csv
+				printf "\n\nAlbum deleted successfully.\nPress any key to continue.\n"
+				read -sn1
+			else
+				printf "\n\nDeletion procedure aborted. Press any key to continue.\n"
+				read -sn1
+
+			fi
+			else
+				
+	###Extract Id for easier deletion - avoid using regex within awk.
+	ALBUMFOUND=$(grep -i "$NAMETODELETE" albumslist.csv)
+	ALBUMFOUNDID=$(echo "$ALBUMFOUND" | awk ' BEGIN {FS=","} {printf $1}')
+
+		printf "\nYou sure you want do delete the following record (Y/N): \n\n"
+		echo "$ALBUMFOUND" | \
+			awk '
+		       	BEGIN {FS =","}  { printf "\033[1:31m%s %s %s %s %s %s %s %s\033[0m", $1, $2, $3, $4, $5, $6, $7, $8 }
+			'
+		read -sn1 YESNO
+		        if [ "$YESNO" = "y" ] || [ "$YESNO" = "Y" ]
+			then
+				awk -v ID="$ALBUMFOUNDID" '
+				BEGIN { FS ="," }
+				{
+				if ($1!=ID)
+					print
+				}' albumslist.csv > albumslist.tmp
+			
+			###Added sleep here as sometimes mv would give an error that albumslist.csv is busy.
+	
+				sleep 0.25
+			       	mv albumslist.tmp albumslist.csv
+				printf "\n\nAlbum deleted successfully.\nPress any key to continue.\n"
+				read -sn1
+			else
+				printf "\n\nDeletion procedure aborted. Press any key to continue.\n"
+				read -sn1
+
+			fi
+	fi
+	
+break
+done
+}
+
+##########################
+###SEARCH ALBUM SUBMENU###
+##########################
+
+function searchAlbumSubmenu {
+	printf "Search menu"
+	read -sn1
+	break
 }
 
 ########################################
