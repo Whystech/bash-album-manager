@@ -321,17 +321,30 @@ function addAlbum {
 ALBUMID=$(tail -n 1 albumslist.csv| awk -F, '{print $1}')
 ALBUMID=$((ALBUMID + 1))
 
-###Need to have comma separation.
-###Using printf to be sure that after each value there is a comma inserted.
-printf "%s,%s,%s,%s,%s,%s,%s,%s\n"  "$ALBUMID" "$ALBUMNAME" "$ARTISTNAME" "$ALBUMYOR" "$ALBUMGENRE" "$TRACKSNUMBER" "$LABELNAME" "$UPC" >> albumslist.csv
-printf "\nAdding album record:\n\n"
-
 ###VISUAL CONFIRMATION FOR USER
 
-printf "\033[33mAlbum ID: $ALBUMID\nAlbum Name: $ALBUMNAME\nArtist Name: $ARTISTNAME\nAlbum Year of Release: $ALBUMYOR\nGenre: $ALBUMGENRE\nNumber of Tracks: $TRACKSNUMBER\nRecord Label: $LABELNAME\nUPC: $UPC\n\033[39m\n"
-printf "\nPress any key to continue."
-read -sn1
-break
+		printf "\nDo you want to add the following record?(Y/N)\n\n"
+		printf "\033[1:33mAlbum ID: $ALBUMID\nAlbum Name: $ALBUMNAME\nArtist Name: $ARTISTNAME\nAlbum Year of Release: $ALBUMYOR\nGenre: $ALBUMGENRE\nNumber of Tracks: $TRACKSNUMBER\nRecord Label: $LABELNAME\nUPC: $UPC\n\033[0m\n"
+
+###Save or discard record
+
+		read -sn1 YESNO
+			if [ "$YESNO" = "y" ] || [ "$YESNO" = "Y" ]
+			then
+				printf "\nAlbum record added!\n\n"
+
+###Need to have comma separation.
+###Using printf to have a comma inserted after each value.
+
+			printf "%s,%s,%s,%s,%s,%s,%s,%s\n"  "$ALBUMID" "$ALBUMNAME" "$ARTISTNAME" "$ALBUMYOR" "$ALBUMGENRE" "$TRACKSNUMBER" "$LABELNAME" "$UPC" >> albumslist.csv
+			printf "\nPress any key to continue."
+			read -sn1
+			break
+			else
+				printf "\nAlbumd record discarded!\nPress any key to continue.\n"
+				read -sn1
+				break
+			fi
 done
 }
 
@@ -363,7 +376,7 @@ function viewAlbums {
 		###Formatting variables
 		###Used ANSII codes to give the table some colour.
 		titlesFormat = \
-		" \033[1m| %-10s\033[0m||" \
+		" \033[1m| \033[0m\033[1:31m%-10s\033[0m||" \
 		" \033[93;1m%-25s\033[0m||" \
 		" \033[93;1m%-20s\033[0m||" \
 		" \033[93;1m%-15s\033[0m||" \
@@ -371,41 +384,47 @@ function viewAlbums {
 		" \033[93;1m%-15s\033[0m||" \
 		" \033[93;1m%-15s\033[0m||" \
 		" \033[93;1m%-25s\033[0m\033[1m|\033[0m\n"
-		valuesFormat = " \033[1m|\033[0m %-10s|| %-25s|| %-20s|| %-15s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
+		valuesFormat = " \033[1m|\033[0m \033[1:31m%-10s\033[0m|| %-25s|| %-20s|| %-15s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
 		
 		###Table top frame for column titles
 		
 		printf "\n"
 		printf "\nPress any key to return.\n"
-		printf " "
-		for (i = 0; i < 169; i++)
-		printf "\033[1m_\033[0m"
-		print "\n"
-
+		printf "  "
+		 for (i = 0; i < 167; i++)
+			printf "\033[1m_\033[0m"
+	
+		###A savage solution but my for loops would not behave as intended.	
+		printf "\033[1m\n |                                                                                                                                                                       |\n\033[0m"
+	
 
 		###Column title
 		printf titlesFormat , "Album ID", "Album Name", "Artist" , "Year" , "Genre" , "No. of Tracks" , "Record Label", "Universal Product Code"
 
 		###Table bottom frame for column titles
-		printf " "
-		for (i = 0; i < 169; i++)
-		printf "\033[1m_\033[0m"
-		print "\n"}
+		printf "\033[1m |\033[0m"
+		for (i = 0; i < 167; i++)
+			printf "\033[1m_\033[0m"
+		printf "\033[1m|\n |                                                                                                                                                                       |\033[0m  "		
 
+				}
 		#########END OF BEGIN
 
 		###Field printing
-		{
+		{	
 		printf valuesFormat , $1, $2, $3, $4, $5, $6, $7, $8 
-		}
+		}	
 
 
 		###Bottom frame for table
 		END {
-		printf " "
-		for (i = 0; i < 169; i++)
-		printf "\033[1m_\033[0m"
-		printf "\n"
+		printf " \033[1m|\033[0m"
+		for (i = 0; i < 167; i++)
+			printf "\033[1m_\033[0m"
+			
+	###Filling holes in the table
+	
+		printf "\033[1m|\033[0m \n"
 		###Hide cursor
 		printf "\033[?25l"
 		}
@@ -419,7 +438,7 @@ done
 }
 
 ##############################
-###EDIT/DELETE ALBUMSUBMENU###
+###DELETE ALBUMSUBMENU###
 ##############################
 
 function editAlbumSubmenu {
@@ -449,24 +468,35 @@ function deleteByName {
 	do
 		printf "\nEnter the name of the album which you want to delete:\n"
 		read NAMETODELETE
-		NAMETODELETE=${NAMETODELETE,,}
+	###Check if empty or chars less than 3.
 		if [ -z "$NAMETODELETE" ] || [ "${#NAMETODELETE}" -lt 3 ]
 		then
 			printf "\nName cannot be empty or have less than 3 characters."
 			read -sn1
 			break
 		fi
+
+	###Search only in field 2 - name of the album.
+	
 		if !  awk 'BEGIN {FS="," } { print $2 }' albumslist.csv | grep -iq "$NAMETODELETE"
 		then
 			printf "\nNo matches found."
 			read -sn1
 			break
+	
 		fi
 
+	###If there is more than one results (e.g. searching for "American" could return "American Idiot" or "American beauty"
+	###The user then has to input the specific id of the record he wants to remove.
+	
 		if [ $( awk 'BEGIN {FS="," } { print $2 }' albumslist.csv | grep -i "$NAMETODELETE" | wc -l ) -gt 1 ]
 		then
 			clear
 			printf "\nMultiple records found for \033[1:31m$NAMETODELETE\033[0m\n"
+
+	###Save only the found albums to be piped in awk.
+	###This awk is pretty much the same as the one in the viewAlbums function.
+	
 			ALBUMSFOUND=$(grep -i "$NAMETODELETE" albumslist.csv)
 			echo "$ALBUMSFOUND" | \
 				awk '
@@ -474,7 +504,7 @@ function deleteByName {
 				###Formatting variables
 				###Used ANSII codes to give the table some colour.
 				titlesFormat = \
-				" \033[1m| %-10s\033[0m||" \
+				" \033[1m| \033[0m\033[1:31m%-10s\033[0m||" \
 				" \033[93;1m%-25s\033[0m||" \
 				" \033[93;1m%-20s\033[0m||" \
 				" \033[93;1m%-15s\033[0m||" \
@@ -482,7 +512,7 @@ function deleteByName {
 				" \033[93;1m%-15s\033[0m||" \
 				" \033[93;1m%-15s\033[0m||" \
 				" \033[93;1m%-25s\033[0m\033[1m|\033[0m\n"
-				valuesFormat = " \033[1m|\033[0m %-10s|| %-25s|| %-20s|| %-15s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
+				valuesFormat = " \033[1m|\033[0m \033[1:31m%-10s\033[0m|| %-25s|| %-20s|| %-15s|| %-20s|| %-15s|| %-15s|| %-25s\033[1m|\033[0m\n"
 
 
 				###Table top frame for column titles
@@ -521,27 +551,47 @@ function deleteByName {
 				}
 				'
 		printf "\nInput the ID of the album you wish to remove:\n"
+		
+		###User will need to specify the ID###
+		###There is an error check here so the user cannot mistakenly delete another record.
+
 		read IDTODELETE
+
+			if [ -z "${IDTODELETE}" ]
+				then
+					printf "\nID cannot be empty. Press any key to continue.\n"
+					read -sn1
+					break
+			fi
 
 			if ! echo "$ALBUMSFOUND" | awk 'BEGIN {FS="," } { print $1 }' | grep -iq "$IDTODELETE" 
 			then
-				printf "Invalid ID."
+				printf "\nInvalid ID. Press any key to continue.\n"
 				read -sn1
 				break 1
 			fi
 
 			printf "\nAre you sure you want to delete the following record(Y/N): \n\n"
+	
+		###Display the record about to be deleted.
 
 		awk -v ID="$IDTODELETE" '
 		BEGIN{  FS="," }
 		{
 		if ($1==ID)
-			printf "\033[1:31m%s %s %s %s %s %s %s %s\033[0m", $1, $2, $3, $4, $5, $6, $7, $8 
+			printf "\033[1:31m%s by %s\n%s %s\nTracks: %s\nLabel: %s\nUPC: %s\033[0m", $2, $3, $4, $5, $6, $7, $8 
 		}' albumslist.csv
+
+		###User confirmation for deletion.
+
 		read -sn1 YESNO
 			
 			if [ "$YESNO" = "y" ] || [ "$YESNO" = "Y" ]
 			then
+
+		###Print all records that do not match the specified Id, put the new results in a temporary file, then replace the original list file.
+		###The output will not have the record with the specified Id.
+
 				awk -v ID="$IDTODELETE" '
 				BEGIN { FS ="," }
 				{
@@ -559,14 +609,15 @@ function deleteByName {
 			fi
 			else
 				
-	###Extract Id for easier deletion - avoid using regex within awk.
+	###Extract Id from first field for easier deletion - avoid using regex within awk - the functionality before is used only if there is only one match found.
+	
 	ALBUMFOUND=$(grep -i "$NAMETODELETE" albumslist.csv)
 	ALBUMFOUNDID=$(echo "$ALBUMFOUND" | awk ' BEGIN {FS=","} {printf $1}')
 
 		printf "\nYou sure you want do delete the following record (Y/N): \n\n"
 		echo "$ALBUMFOUND" | \
 			awk '
-		       	BEGIN {FS =","}  { printf "\033[1:31m%s %s %s %s %s %s %s %s\033[0m", $1, $2, $3, $4, $5, $6, $7, $8 }
+		       	BEGIN {FS =","}  { printf "\033[1:31m%s by %s\n%s %s\nTracks: %s\nLabel: %s\nUPC: %s\033[0m", $2, $3, $4, $5, $6, $7, $8 }
 			'
 		read -sn1 YESNO
 		        if [ "$YESNO" = "y" ] || [ "$YESNO" = "Y" ]
@@ -589,8 +640,8 @@ function deleteByName {
 				read -sn1
 
 			fi
-	fi
-	
+		fi
+
 break
 done
 }
